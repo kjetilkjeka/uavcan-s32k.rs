@@ -1,0 +1,13 @@
+[package]
+name = "uavcan_s32k144"
+version = "0.1.0"
+authors = ["Kjetil Kjeka <kjetilkjeka@gmail.com>"]
+description = "Template for getting started with development on the NXP s32k144evb evaluation board"
+keywords = ["arm", "cortex-m", "s32k144", "template"]
+categories = ["embedded", "no-std", "hardware-support"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
+
+[dependencies]
+cortex-m = "0.3.1"
+s32k144evb = "0.5.0"
