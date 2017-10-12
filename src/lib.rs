@@ -17,11 +17,11 @@ use alloc::Vec;
 use embedded_types::can::ExtendedDataFrame as CanFrame;
 
 pub struct Interface<'a> {
-    interface: &'a s32k144::can0::RegisterBlock,
+    interface: &'a s32k144evb::can::Can<'a>,
 }
 
 impl<'a> Interface<'a> {
-    pub fn new(can: &'a s32k144::can0::RegisterBlock) -> Self {
+    pub fn new(can: &'a s32k144evb::can::Can<'a>) -> Self {
         Interface{interface: can}
     }
 }
@@ -30,7 +30,7 @@ impl<'a> TransferInterface<'a> for Interface<'a> {
     type Frame = CanFrame;
     type IDContainer = &'a [FullTransferID];
 
-    fn transmit(&self, frame: &CanFrame) -> Result<(), IOError> {unimplemented!()}
+    fn transmit(&self, frame: &CanFrame) -> Result<(), IOError> {self.interface.transmit_quick(&embedded_types::can::CanFrame::from(*frame))}
     fn receive(&self, identifier: &FullTransferID) -> Option<CanFrame> {unimplemented!()}
     fn completed_receives(&self, identifier: FullTransferID, mask: FullTransferID) -> Self::IDContainer {unimplemented!()}    
 }
