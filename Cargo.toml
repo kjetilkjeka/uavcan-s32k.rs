@@ -10,7 +10,7 @@ repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
 
 [dependencies]
 s32k144 = "0.6.1"
-s32k144evb = "0.6.0"
+s32k144evb = "0.6.1"
 embedded_types = "0.3.0"
 
 [dependencies.uavcan]
