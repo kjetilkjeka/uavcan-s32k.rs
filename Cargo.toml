@@ -19,4 +19,3 @@ default-features = false
 
 [dev-dependencies]
 bit_field = "0.8.0"
-alloc-cortex-m = "0.3.1"
