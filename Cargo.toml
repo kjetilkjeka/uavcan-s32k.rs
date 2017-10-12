@@ -10,4 +10,10 @@ repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
 
 [dependencies]
 cortex-m = "0.3.1"
+s32k144 = "0.6.0"
 s32k144evb = "0.5.0"
+embedded_types = "0.3.0"
+
+[dependencies.uavcan]
+path = "../uavcan/uavcan"
+default-features = false
