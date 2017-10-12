@@ -1,5 +1,3 @@
-#![feature(global_allocator)]
-
 #![no_std]
 
 #[macro_use]
@@ -7,19 +5,9 @@ extern crate uavcan;
 extern crate bit_field;
 extern crate uavcan_s32k;
 extern crate s32k144;
+#[macro_use]
 extern crate s32k144evb;
 extern crate embedded_types;
-extern crate alloc_cortex_m;
-
-use alloc_cortex_m::CortexMHeap;
-
-#[global_allocator]
-static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
-
-extern "C" {
-    static mut _sheap: u32;
-    static mut _eheap: u32;
-}
 
 use s32k144evb::{
     wdog,
@@ -63,16 +51,12 @@ message_frame_header!(NodeStatusHeader, 341);
 uavcan_frame!(derive(Debug), NodeStatusFrame, NodeStatusHeader, NodeStatus, 0);
 
 fn main() {
-
-    let mut wdog_settings = wdog::WatchdogSettings::default();
-    wdog_settings.enable = false;
-    wdog::configure(wdog_settings);
     
     s32k144evb::serial::init();
 
-    let start = unsafe { &mut _sheap as *mut u32 as usize };
-    let end = unsafe { &mut _sheap as *mut u32 as usize };
-    unsafe { ALLOCATOR.init(start, end - start) }
+    let mut wdog_settings = wdog::WatchdogSettings::default();
+    wdog_settings.enable = false;
+    wdog::configure(wdog_settings).unwrap();    
 
     let peripherals = unsafe{ s32k144::Peripherals::all() };
 
@@ -107,8 +91,9 @@ fn main() {
     let can_interface = s32k144evb::can::Can::init(peripherals.CAN0, &can_settings).unwrap();
     let uavcan_interface = Interface::new(&can_interface);
 
-    let loop_max = 100000;
+    let loop_max = 5000;
 
+    
     loop {
         let uavcan_frame = NodeStatusFrame::from_parts(
             NodeStatusHeader::new(0, 32),
@@ -121,12 +106,29 @@ fn main() {
             }
         );
 
-        let mut generator = FrameDisassembler::from_uavcan_frame(uavcan_frame, 0.into());
+        let mut generator = FrameDisassembler::from_uavcan_frame(uavcan_frame, TransferID::new(0));
         let can_frame = generator.next_transfer_frame::<embedded_types::can::ExtendedDataFrame>().unwrap();
-                
+
+        let identifier = FullTransferID {
+            frame_id: NodeStatusHeader::new(0, 0).id(),
+            transfer_id: TransferID::new(0),
+        };
+        
+        let mask = identifier.clone();
+        
         for i in 0..loop_max {
             if i == 0 {
                 uavcan_interface.transmit(&can_frame).unwrap();
+            }
+
+            if let Some(id) = uavcan_interface.completed_receive(identifier, mask) {
+                let mut assembler = FrameAssembler::new();
+                let frame = uavcan_interface.receive(&id).unwrap();
+                assert!(frame.data().len() <= 8);
+                while let Ok(AssemblerResult::Ok) = assembler.add_transfer_frame(frame) {}
+
+                let node_status_frame: NodeStatusFrame = assembler.build().unwrap();
+                println!("Received node status frame: {:?}",  node_status_frame);
             }
         }
         
