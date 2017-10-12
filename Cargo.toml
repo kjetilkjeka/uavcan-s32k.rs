@@ -1,6 +1,6 @@
 [package]
-name = "uavcan_s32k144"
-version = "0.1.0"
+name = "uavcan_s32k"
+version = "0.0.1"
 authors = ["Kjetil Kjeka <kjetilkjeka@gmail.com>"]
 description = "Template for getting started with development on the NXP s32k144evb evaluation board"
 keywords = ["arm", "cortex-m", "s32k144", "template"]
