@@ -62,6 +62,7 @@ impl<'a> TransferInterface<'a> for Interface<'a> {
 struct ReceiveBuffer{
     buffer: [CanFrame; ReceiveBuffer::BUFFER_LENGTH],
     length: usize,
+    overflow: bool,
 }
 
 impl ReceiveBuffer{
@@ -71,10 +72,15 @@ impl ReceiveBuffer{
         ReceiveBuffer{
             buffer: [CanFrame::new(embedded_types::can::ExtendedID::new(0)); Self::BUFFER_LENGTH],
             length: 0,
+            overflow: false,
         }
     }
 
     pub fn push(&mut self, frame: CanFrame) {
+        if self.length == ReceiveBuffer::BUFFER_LENGTH {
+            self.remove_index(0);
+            self.overflow = true;
+        }
         self.buffer[self.length] = frame;
         self.length += 1;
     }
