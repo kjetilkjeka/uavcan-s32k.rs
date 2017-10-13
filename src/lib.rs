@@ -60,14 +60,16 @@ impl<'a> TransferInterface<'a> for Interface<'a> {
 }
 
 struct ReceiveBuffer{
-    buffer: [CanFrame; 10],
+    buffer: [CanFrame; ReceiveBuffer::BUFFER_LENGTH],
     length: usize,
 }
 
 impl ReceiveBuffer{
+    const BUFFER_LENGTH: usize = 20;
+    
     pub fn new() -> Self {
         ReceiveBuffer{
-            buffer: [CanFrame::new(embedded_types::can::ExtendedID::new(0)); 10],
+            buffer: [CanFrame::new(embedded_types::can::ExtendedID::new(0)); Self::BUFFER_LENGTH],
             length: 0,
         }
     }
