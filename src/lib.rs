@@ -83,16 +83,18 @@ impl ReceiveBuffer{
         let opt_index = self.buffer[0..self.length].iter().position(|value| value.full_id() == *identifier);
 
         match opt_index {
-            Some(index) => {
-                let frame = self.buffer[index];
-                self.length -= 1;
-                for i in index..self.length {
-                    self.buffer[i] = self.buffer[i+1];
-                }
-                Some(frame)
-            },
+            Some(index) => Some(self.remove_index(index)),
             None => None,
         }
+    }
+
+    fn remove_index(&mut self, index: usize) -> CanFrame {
+        let frame = self.buffer[index];
+        self.length -= 1;
+        for i in index..self.length {
+            self.buffer[i] = self.buffer[i+1];
+        }
+        frame
     }
 
     pub fn completed_receive(&mut self, identifier: FullTransferID, mask: FullTransferID) -> Option<FullTransferID> {
