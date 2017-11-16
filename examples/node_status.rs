@@ -2,15 +2,19 @@
 
 #[macro_use]
 extern crate uavcan;
-extern crate bit_field;
+extern crate dsdl;
+
 extern crate uavcan_s32k;
 extern crate s32k144;
 #[macro_use]
 extern crate s32k144evb;
 extern crate embedded_types;
 
+use embedded_types::io::Write;
+
 use s32k144evb::{
     wdog,
+    spc,
 };
 
 use s32k144evb::can::{
@@ -19,67 +23,47 @@ use s32k144evb::can::{
 
 use uavcan::types::*;
 use uavcan::{
-    PrimitiveType,
-    Frame,
-    MessageFrameHeader,
-    Header,
+    Message,
+    NodeID,
+    NodeConfig,
+    SimpleNode,
+    Node,
 };
 
 use uavcan::transfer::TransferInterface;
-use uavcan::transfer::FullTransferID;
 use uavcan::transfer::TransferID;
-
-use uavcan::frame_disassembler::FrameDisassembler;
-use uavcan::frame_assembler::{
-    FrameAssembler,
-    AssemblerResult,
-};
-
-use bit_field::BitField;
 
 use uavcan_s32k::Interface;
 
-#[derive(Debug, UavcanStruct, Default)]
-struct NodeStatus {
-    uptime_sec: Uint32,
-    health: Uint2,
-    mode: Uint3,
-    sub_mode: Uint3,
-    vendor_specific_status_code: Uint16,
-}
-message_frame_header!(NodeStatusHeader, 341);
-uavcan_frame!(derive(Debug), NodeStatusFrame, NodeStatusHeader, NodeStatus, 0);
-
 fn main() {
     
-    s32k144evb::serial::init();
-
     let mut wdog_settings = wdog::WatchdogSettings::default();
     wdog_settings.enable = false;
     wdog::configure(wdog_settings).unwrap();    
 
     let peripherals = unsafe{ s32k144::Peripherals::all() };
 
+    let pc_config = spc::Config{
+        system_oscillator: spc::SystemOscillatorInput::Crystal(8_000_000),
+        soscdiv2: spc::SystemOscillatorOutput::Div1,
+        .. Default::default()
+    };
+    
+    let spc = spc::Spc::init(
+        peripherals.SCG,
+        peripherals.SMC,
+        peripherals.PMC,
+        pc_config
+    ).unwrap();
+    
+    let mut console = s32k144evb::console::LpuartConsole::init(peripherals.LPUART1, &spc);
+
     let mut can_settings = CanSettings::default();    
-    can_settings.source_frequency = 8000000;
     can_settings.self_reception = false;
     
-    let scg = peripherals.SCG;
     let porte = peripherals.PORTE;
     let pcc = peripherals.PCC;
-        
-    scg.sosccfg.modify(|_, w| w
-                       .range()._11()
-                       .hgo()._1()
-                       .erefs()._1()
-    );
-    
-    scg.soscdiv.modify(|_, w| w
-                       .soscdiv2().bits(0b001)
-    );
-    
-    scg.sosccsr.modify(|_, w| w.soscen()._1());
-    
+            
     // Configure the can i/o pins
     pcc.pcc_porte.modify(|_, w| w.cgc()._1());
     porte.pcr4.modify(|_, w| w.mux()._101());
@@ -88,51 +72,36 @@ fn main() {
     pcc.pcc_flex_can0.modify(|_, w| w.cgc()._1());
     
 
-    let can_interface = s32k144evb::can::Can::init(peripherals.CAN0, &can_settings).unwrap();
+    let can_interface = s32k144evb::can::Can::init(peripherals.CAN0, &spc, &can_settings).unwrap();
     let uavcan_interface = Interface::new(&can_interface);
+
+    let node_config = NodeConfig{id: Some(NodeID::new(32))};
+    let node = SimpleNode::new(uavcan_interface, node_config);
+
 
     let loop_max = 5000;
 
     
     loop {
-        let uavcan_frame = NodeStatusFrame::from_parts(
-            NodeStatusHeader::new(0, 32),
-            NodeStatus{
-                uptime_sec: 0.into(),
-                health: 0.into(),
-                mode: 0.into(),
-                sub_mode: 0.into(),
-                vendor_specific_status_code: 0.into(),
-            }
-        );
-
-        let mut generator = FrameDisassembler::from_uavcan_frame(uavcan_frame, TransferID::new(0));
-        let can_frame = generator.next_transfer_frame::<embedded_types::can::ExtendedDataFrame>().unwrap();
-
-        let identifier = FullTransferID {
-            frame_id: NodeStatusHeader::new(0, 0).id(),
-            transfer_id: TransferID::new(0),
+        let uavcan_frame = dsdl::uavcan::protocol::NodeStatus {
+            uptime_sec: 0,
+            health: u2::new(0),
+            mode: u3::new(0),
+            sub_mode: u3::new(0),
+            vendor_specific_status_code: 0,
         };
-        
-        let mask = identifier.clone();
+
         
         for i in 0..loop_max {
             if i == 0 {
-                uavcan_interface.transmit(&can_frame).unwrap();
+                node.transmit_message(uavcan_frame.clone());
             }
-
-            if let Some(id) = uavcan_interface.completed_receive(identifier, mask) {
-                let mut assembler = FrameAssembler::new();
-                let frame = uavcan_interface.receive(&id).unwrap();
-                assert!(frame.data().len() <= 8);
-                while let Ok(AssemblerResult::Ok) = assembler.add_transfer_frame(frame) {}
-
-                let node_status_frame: NodeStatusFrame = assembler.build().unwrap();
-                println!("Received node status frame: {:?}",  node_status_frame);
+            
+            if let Ok(message) = node.receive_message::<dsdl::uavcan::protocol::NodeStatus>() {
+                writeln!(console, "Received node status frame: {:?}",  message);
             }
+            
         }
-        
-        
     }
 }
 
