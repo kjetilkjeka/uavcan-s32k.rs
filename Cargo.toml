@@ -10,7 +10,7 @@ repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
 
 [dependencies]
 s32k144 = "0.6.1"
-s32k144evb = {path = "../s32k144evb"}
+s32k144evb = {git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
 embedded_types = "0.3.1"
 
 [dependencies.uavcan]
