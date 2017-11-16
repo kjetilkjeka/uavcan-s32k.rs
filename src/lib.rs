@@ -18,14 +18,22 @@ use uavcan::transfer::IOError;
 use embedded_types::can::ExtendedDataFrame as CanFrame;
 
 pub struct Interface<'a> {
-    interface: &'a s32k144evb::can::Can<'a>,
+    interface: s32k144evb::can::Can<'a>,
     rx_buffer: RefCell<ReceiveBuffer>,
 }
 
 impl<'a> Interface<'a> {
-    pub fn new(can: &'a s32k144evb::can::Can<'a>) -> Self {
+    pub fn new(
+        can: &'a s32k144::can0::RegisterBlock,
+        spc: &'a s32k144evb::spc::Spc<'a>,
+    ) -> Self {
+        let mut can_settings = s32k144evb::can::CanSettings::default();    
+        can_settings.self_reception = false;
+
+        let can_interface = s32k144evb::can::Can::init(can, spc, &can_settings).unwrap();
+        
         Interface{
-            interface: can,
+            interface: can_interface,
             rx_buffer: RefCell::new(ReceiveBuffer::new()),
         }
     }

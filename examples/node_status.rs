@@ -71,9 +71,7 @@ fn main() {
     
     pcc.pcc_flex_can0.modify(|_, w| w.cgc()._1());
     
-
-    let can_interface = s32k144evb::can::Can::init(peripherals.CAN0, &spc, &can_settings).unwrap();
-    let uavcan_interface = Interface::new(&can_interface);
+    let uavcan_interface = Interface::new(peripherals.CAN0, &spc);
 
     let node_config = NodeConfig{id: Some(NodeID::new(32))};
     let node = SimpleNode::new(uavcan_interface, node_config);
