@@ -74,7 +74,7 @@ struct ReceiveBuffer{
 }
 
 impl ReceiveBuffer{
-    const BUFFER_LENGTH: usize = 20;
+    const BUFFER_LENGTH: usize = 100;
     
     pub fn new() -> Self {
         ReceiveBuffer{
