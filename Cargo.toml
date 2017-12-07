@@ -10,7 +10,7 @@ repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
 
 [dependencies]
 s32k144 = "0.6.1"
-s32k144evb = {git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
+s32k144evb = {default-features = false, git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
 embedded_types = "0.3.1"
 
 [dependencies.uavcan]
@@ -19,3 +19,4 @@ default-features = false
 
 [dev-dependencies]
 dsdl = {git = "https://github.com/UAVCAN/uavcan.rs.git"}
+s32k144evb = {default-features = true, git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
