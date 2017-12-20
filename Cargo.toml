@@ -12,6 +12,7 @@ repository = "https://github.com/kjetilkjeka/s32k144evb.rs"
 s32k144 = "0.6.1"
 s32k144evb = {default-features = false, git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
 embedded_types = "0.3.1"
+cortex-m = "0.3.1"
 
 [dependencies.uavcan]
 git = "https://github.com/UAVCAN/uavcan.rs.git"
@@ -20,3 +21,4 @@ default-features = false
 [dev-dependencies]
 dsdl = {git = "https://github.com/UAVCAN/uavcan.rs.git"}
 s32k144evb = {default-features = true, git = "https://github.com/kjetilkjeka/s32k144evb.rs.git"}
+alloc-cortex-m = "0.3.1"

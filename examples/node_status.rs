@@ -1,4 +1,7 @@
 #![no_std]
+#![feature(global_allocator)]
+
+extern crate alloc_cortex_m;
 
 #[macro_use]
 extern crate uavcan;
@@ -35,13 +38,28 @@ use uavcan::transfer::TransferID;
 
 use uavcan_s32k::Interface;
 
-fn main() {
-    
-    let mut wdog_settings = wdog::WatchdogSettings::default();
-    wdog_settings.enable = false;
-    wdog::configure(wdog_settings).unwrap();    
+#[global_allocator]
+static ALLOCATOR: alloc_cortex_m::CortexMHeap = alloc_cortex_m::CortexMHeap::empty();
 
+// These symbols come from a linker script
+extern "C" {
+    static mut _sheap: u32;
+    static mut _eheap: u32;
+}
+
+fn main() {
     let peripherals = unsafe{ s32k144::Peripherals::all() };
+    
+    let wdog_settings = wdog::WatchdogSettings{
+        enable: false,
+        .. Default::default()
+    };
+    let wdog = wdog::Watchdog::init(peripherals.WDOG, wdog_settings).unwrap();
+wdog.reset();
+
+    let start = unsafe { &mut _sheap as *mut u32 as usize };
+    unsafe { ALLOCATOR.init(start, 2048) }
+    
 
     let pc_config = spc::Config{
         system_oscillator: spc::SystemOscillatorInput::Crystal(8_000_000),
@@ -57,6 +75,7 @@ fn main() {
     ).unwrap();
     
     let mut console = s32k144evb::console::LpuartConsole::init(peripherals.LPUART1, &spc);
+    writeln!(console, "Hello world!");
 
     let mut can_settings = CanSettings::default();    
     can_settings.self_reception = false;
@@ -71,12 +90,11 @@ fn main() {
     
     pcc.pcc_flex_can0.modify(|_, w| w.cgc()._1());
     
-    let uavcan_interface = Interface::new(peripherals.CAN0, &spc);
+    let interface = Interface::new(peripherals.CAN0, &spc);
 
     let node_config = NodeConfig{id: Some(NodeID::new(32))};
-    let node = SimpleNode::new(uavcan_interface, node_config);
-
-
+    let node = SimpleNode::new(&interface, node_config);
+    let subscriber = node.subscribe::<dsdl::uavcan::protocol::NodeStatus>().unwrap();
     let loop_max = 5000;
 
     
@@ -91,11 +109,13 @@ fn main() {
 
         
         for i in 0..loop_max {
+            interface.spin();
             if i == 0 {
-                node.transmit_message(uavcan_frame.clone());
+                node.broadcast(uavcan_frame.clone()).unwrap();
             }
-            
-            if let Ok(message) = node.receive_message::<dsdl::uavcan::protocol::NodeStatus>() {
+
+            if let Some(receive_res) = subscriber.receive() {
+                let message = receive_res.unwrap();
                 writeln!(console, "Received node status frame: {:?}",  message);
             }
             
